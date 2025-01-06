@@ -1,0 +1,1 @@
+alert tcp $HOME_NET any -> any $HTTP_PORTS (flow:established,to_server; content:"MLOKit-e977ac02118a3cb2c584d92a324e41e9"; http_header; fast_pattern:only; pcre:"/^User\x2dAgent\x3a\x20MLOKit/Hm"; metadata:service http; msg:"Known malicious user-agent string MLOKit tool"; id:5493400793187708; rev:1; )
