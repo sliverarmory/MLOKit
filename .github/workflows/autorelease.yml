@@ -27,10 +27,14 @@ jobs:
     - name: Git Fetch Tags
       run: git fetch --prune --unshallow --tags -f
 
-    - name: Install jq and minisign via Chocolatey
+    - name: Install jq via Chocolatey
       run: |
         choco install jq -y
-        choco install minisign -y
+        
+    - name: Install minisign from moloch
+      run: |
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri https://github.com/moloch--/minisign/releases/download/v0.2.1/minisign.exe -OutFile minisign.exe
 
     - name: Build solution
       run: |
@@ -46,11 +50,14 @@ jobs:
 
     - name: Sign Package
       run: |
+        pwd
         Write-Output "${{ secrets.MINISIGN_PRIVATE_KEY }}" > minisign.key
+        ls
         $Content1 = Get-Content -Path .\MLOKit\compiled\alias.json
+        ls .\MLOKit\compiled\
         $Bytes = [System.Text.Encoding]::UTF8.GetBytes($Content1)
         $Encoded = [System.Convert]::ToBase64String($Bytes)
-        minisign.exe -s minisign.key -S -m mlokit.tar.gz -t "$Encoded" -x mlokit.minisig
+        .\minisign.exe -s minisign.key -S -m mlokit.tar.gz -t "$Encoded" -x mlokit.minisig
 
     - name: "Publish Release"
       uses: "marvinpinto/action-automatic-releases@latest"
