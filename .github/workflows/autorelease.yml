@@ -16,10 +16,8 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v3
     
-    - name: Setup NuGet
-      uses: NuGet/setup-nuget@v3
-      with:
-        nuget-version: 'latest'
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v2
     
     - name: Setup .NET Framework Developer Pack for .NET Framework 4.7.2
       run: |
