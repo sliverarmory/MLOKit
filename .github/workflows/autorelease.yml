@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+    branches: ["main"]
+
+jobs:
+  windows-build:
+    name: CSharp Build
+    if: startsWith( github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+  
+    - name: Check out code
+      uses: actions/checkout@v3
+    
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v3
+      with:
+        nuget-version: 'latest'
+    
+    - name: Setup .NET Framework Developer Pack for .NET Framework 4.7.2
+      run: |
+        choco install netfx-4.7.2-devpack -y
+      shell: cmd
+
+    - name: Git Fetch Tags
+      run: git fetch --prune --unshallow --tags -f
+
+    - name: Install jq and minisign via Chocolatey
+      run: |
+        choco install jq -y
+        choco install minisign -y
+
+    - name: Build solution
+      run: |
+        nuget.exe restore .\MLOKit.sln
+        msbuild .\MLOKit.sln /p:Configuration=Release /p:OutDir=.\compiled
+
+    - name: Build Package
+      run: |
+        $Version = git.exe describe --tags --abbrev=0
+        Get-Content -Path alias.json | jq.exe --arg ver "$Version" '.version |= $ver' > .\MLOKit\compiled\alias.json
+        cd .\MLOKit\compiled\
+        tar.exe -czvf ..\..\mlokit.tar.gz .\alias.json .\MLOKit.exe
+
+    - name: Sign Package
+      run: |
+        Write-Output "${{ secrets.MINISIGN_PRIVATE_KEY }}" > minisign.key
+        $Content1 = Get-Content -Path .\MLOKit\compiled\alias.json
+        $Bytes = [System.Text.Encoding]::UTF8.GetBytes($Content1)
+        $Encoded = [System.Convert]::ToBase64String($Bytes)
+        minisign.exe -s minisign.key -S -m mlokit.tar.gz -t "$Encoded" -x mlokit.minisig
+
+    - name: "Publish Release"
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        files: |
+          mlokit.minisig
+          mlokit.tar.gz
